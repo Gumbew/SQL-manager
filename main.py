@@ -7,7 +7,7 @@ from parsers import SQLParser, custom_reducer, custom_mapper
 
 
 def remove_file_from_cluster(file_name):
-    os.system(f"python C:\\Users\\gumbe\\workspace\\GitHub\\Diploma\\mr-client\\client.py --rem '{file_name}',1 ")
+    os.system(f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --rem '{file_name}',1 ")
 
 
 def run_tasks(sql, file_name):
@@ -17,17 +17,17 @@ def run_tasks(sql, file_name):
     reducer = ""
 
     file_path = os.path.abspath(file_name)
-    with open(f"data\\{file_name}_reducer.py", 'w') as r:
+    with open(f"data{os.sep}{file_name}_reducer.py", 'w') as r:
         r.write(reducer)
 
-    with open(f"data\\{file_name}_mapper.py", 'w') as m:
+    with open(f"data{os.sep}{file_name}_mapper.py", 'w') as m:
         m.write(mapper)
 
-    mapper_path = os.path.abspath(f"data\\{file_name}_mapper.py")
-    reducer_path = os.path.abspath(f"data\\{file_name}_reducer.py")
+    mapper_path = os.path.abspath(f"data{os.sep}{file_name}_mapper.py")
+    reducer_path = os.path.abspath(f"data{os.sep}{file_name}_reducer.py")
 
     os.system(
-        f"python C:\\Users\\gumbe\\workspace\\GitHub\\Diploma\\mr-client\\client.py --mf {mapper_path} "
+        f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --mf {mapper_path} "
         f"--rf {reducer_path}  --src {file_path} --dest {file_name} "
         f"--key {key_col} ")
 
@@ -56,8 +56,8 @@ def main():
     #remove_file_from_cluster(file_name_B)
 
     file_name_A = 'A.csv'
-    #run_tasks(sql2, file_name_A)
-    remove_file_from_cluster(file_name_A)
+    run_tasks(sql2, file_name_A)
+    # remove_file_from_cluster(file_name_A)
 
     # file_name = 'spotify_data_f.csv'
 
