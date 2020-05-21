@@ -31,8 +31,16 @@ def get_field_delimiter():
     return client_config['map_reduce']['field_delimiter']
 
 
-def run_reduce():
-    pass
+def run_reduce(reducer_path, file_path, file_name):
+    if type(file_path) is tuple:
+        os.system(
+            f"python {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path[0]},{file_path[1]} --dest {file_name}")
+    else:
+        os.system(f"python {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path} --dest {file_name}")
+
+
+def run_shuffle(file_path, key):
+    os.system(f"python {path_to_client_file} --shuffle '1' --src {file_path} --key {key}")
 
 
 def run_tasks(sql):
@@ -61,6 +69,11 @@ def run_tasks(sql):
 
             push_file_on_cluster(file_path, file_name)
             run_map(mapper_path, file_path, file_name)
+            run_shuffle(file_path, key_col)
+
+        file_name = from_file[0]
+
+        run_reduce(reducer_path, from_file, file_name)
     else:
         key_col = SQLParser.get_key_col(parsed_sql, from_file)
         reducer = custom_reducer(parsed_sql, field_delimiter)
@@ -78,6 +91,8 @@ def run_tasks(sql):
 
         push_file_on_cluster(file_path, from_file)
         run_map(mapper_path, file_path, from_file)
+        run_shuffle(file_path, key_col)
+        run_reduce(reducer_path, file_path, from_file)
 
 
 def main():
@@ -101,9 +116,9 @@ def main():
     file_name_A = 'A.csv'
     file_name_B = 'B.csv'
 
-    run_tasks(sql2)
-    # remove_file_from_cluster(file_name_A)
-    # remove_file_from_cluster(file_name_B)
+    run_tasks(sql3)
+    #remove_file_from_cluster(file_name_A)
+    #remove_file_from_cluster(file_name_B)
 
     # t1 = threading.Thread(target=run_tasks, args=(sql,))
     # t2 = threading.Thread(target=run_tasks, args=(sql2,))

@@ -159,72 +159,56 @@ class SQLParser:
             return parsed_sql['select'][0]['new_name']
 
 
-# def custom_mapper(cols):
-#     return f"""
-# def custom_mapper(data_frame):
-#     old_names = []
-#     new_names = []
-#     for i in {cols}:
-#         if i['old_name'] == '*':
-#             res = data_frame.copy()
-#             return res
-#
-#         old_names.append(i['old_name'])
-#         new_names.append(i['new_name'])
-#
-#     res = data_frame[old_names].copy()
-#     res.columns = new_names
-#
-#     return res"""
-
-
 def custom_reducer(parsed_sql, field_delimiter):
     from_file = parsed_sql['from']
 
     res = f"""
-    def custom_reducer(file_name):
-        import pandas as pd
+def custom_reducer(file_name):
+    import pandas as pd
+    if type(file_name) is tuple:
+        l_file_name, r_file_name = file_name
         """
     if type(from_file) is tuple:
         parsed_join = parsed_sql['join']
-        l_file_name, r_file_name = from_file
         res += f"""
-        left_df = pd.read_csv({l_file_name})
-        right_df = pd.read_csv({r_file_name})
-        left_df_col_name = {parsed_join['on'][0].split('.')[1]}
-        right_df_col_name = {parsed_join['on'][1].split('.')[1]}
+    left_df = pd.read_csv(l_file_name)
+    right_df = pd.read_csv(r_file_name)
+    left_df = left_df.drop(columns=['key_column'])
+    right_df = right_df.drop(columns=['key_column'])
+    left_df_col_name = '{parsed_join['on'][0].split('.')[1]}'
+    right_df_col_name = '{parsed_join['on'][1].split('.')[1]}'
 
-        data_frame = pd.merge(left=left_df, how={parsed_join['join_type']}, right=right_df, left_on=left_df_col_name,
-                            right_on=right_df_col_name)
-        """
+    data_frame = pd.merge(left=left_df, how='{parsed_join['join_type']}', right=right_df, left_on=left_df_col_name,
+                        right_on=right_df_col_name)
+    """
     else:
         select_cols = parsed_sql['select']
-        groupby_col = parsed_sql['groupby']
         if 'groupby' in parsed_sql:
+            groupby_col = parsed_sql['groupby']
             res += f"""
-        for i in {select_cols}:
-            if 'aggregate_f_name' in i.keys():
-                if {groupby_col}['key_name']:
-                    data_frame[i['new_name']] = data_frame.groupby({groupby_col}['key_name'])[i['new_name']].transform(
-                        i['aggregate_f_name'])
-                else:
-                    data_frame[i['new_name']] = data_frame.groupby(i['new_name'])[i['new_name']].transform(
-                        i['aggregate_f_name'])
+    for i in {select_cols}:
+        if 'aggregate_f_name' in i.keys():
+            if {groupby_col}['key_name']:
+                data_frame[i['new_name']] = data_frame.groupby({groupby_col}['key_name'])[i['new_name']].transform(
+                    i['aggregate_f_name'])
+            else:
+                data_frame[i['new_name']] = data_frame.groupby(i['new_name'])[i['new_name']].transform(
+                    i['aggregate_f_name'])
 
-        data_frame = data_frame.drop_duplicates({groupby_col}['key_name'])
+    data_frame = data_frame.drop_duplicates({groupby_col}['key_name'])
     """
         elif 'orderby' in parsed_sql:
             pass
         else:
             select_cols = [i['new_name'] for i in parsed_sql['select']]
             res += f"""
-        data_frame = pd.read_csv(file_name, sep={field_delimiter})
-        data_frame = data_frame[{select_cols}]
+    data_frame = pd.read_csv(file_name, sep='{field_delimiter}')
+    data_frame = data_frame[{select_cols}]
         """
 
-        res += """
-        return data_frame
-        """
+    res += """
+    return data_frame
+    """
     return res
 
 
