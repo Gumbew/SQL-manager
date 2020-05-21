@@ -10,10 +10,10 @@ def remove_file_from_cluster(file_name):
     os.system(f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --rem '{file_name}',1 ")
 
 
-def run_tasks(sql, file_name):
+def run_tasks(sql, file_name, dest_file_name=None):
     parsed_sql = SQLParser.sql_parser(sql)
     key_col = SQLParser.get_key_col(parsed_sql)
-    mapper = custom_mapper('A.csv', key_col, parsed_sql['select'], ',')
+    mapper = custom_mapper(file_name, key_col, parsed_sql['select'], ',')
     reducer = ""
 
     file_path = os.path.abspath(file_name)
@@ -28,7 +28,7 @@ def run_tasks(sql, file_name):
 
     os.system(
         f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --mf {mapper_path} "
-        f"--rf {reducer_path}  --src {file_path} --dest {file_name} "
+        f"--rf {reducer_path}  --src {file_path} --dest {dest_file_name if dest_file_name else file_name} "
         f"--key {key_col} ")
 
 
