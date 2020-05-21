@@ -1,5 +1,6 @@
 import json
 import moz_sql_parser as msp
+import os
 
 
 class SQLParser:
@@ -47,6 +48,28 @@ class SQLParser:
                     res.append(SQLParser.process_dict_item(i))
             else:
                 res.append(SQLParser.process_dict_item(select_data))
+        return res
+
+    @staticmethod
+    def split_select_cols(file_name, parsed_select):
+        file_name, ext = os.path.splitext(file_name)
+        res = []
+        for i in parsed_select:
+            col_file_name, col_name = i['old_name'].split('.')
+            if col_file_name == file_name:
+                if i['old_name'] != i['new_name']:
+                    res.append(
+                        {'old_name': col_name,
+                         'new_name': i['new_name']
+                         }
+                    )
+                else:
+                    res.append(
+                        {'old_name': col_name,
+                         'new_name': col_name
+                         }
+                    )
+
         return res
 
     @staticmethod
@@ -111,11 +134,25 @@ class SQLParser:
         if 'groupby' in json_res:
             res['groupby'] = SQLParser.group_by_parser(json_res['groupby'])
         if 'from' in json_res:
-            res['from'] = SQLParser.from_parser(json_res['from'])
+            if type(json_res['from']) is list:
+                res['from'] = SQLParser.from_parser(json_res['from'])
+                res['join'] = SQLParser.join_parser(json_res)
+            else:
+                res['from'] = SQLParser.from_parser(json_res['from'])
         return res
 
     @staticmethod
-    def get_key_col(parsed_sql):
+    def get_key_col(parsed_sql, file_name=None):
+        if 'join' in parsed_sql:
+            if file_name:
+                file_name, ext = os.path.splitext(file_name)
+                col_file_name, col_name = parsed_sql['join']['on'][0].split('.')
+                if col_file_name == file_name:
+                    return col_name
+                else:
+                    col_file_name, col_name = parsed_sql['join']['on'][1].split('.')
+                    return col_name
+
         if 'groupby' in parsed_sql:
             return parsed_sql['groupby'][0]['key_name']
         if 'select' in parsed_sql:
@@ -141,22 +178,54 @@ class SQLParser:
 #     return res"""
 
 
-def custom_reducer(col_names, groupby_cols):
-    return f"""
-def custom_reducer(data_frame):
-    for i in {col_names}:
-        if 'aggregate_f_name' in i.keys():
-            if {groupby_cols}['key_name']:
-                data_frame[i['old_name']] = data_frame.groupby({groupby_cols}['key_name'])[i['old_name']].transform(
-                    i['aggregate_f_name'])
-            else:
-                data_frame[i['old_name']] = data_frame.groupby(i['old_name'])[i['old_name']].transform(
-                    i['aggregate_f_name'])
+def custom_reducer(parsed_sql, field_delimiter):
+    from_file = parsed_sql['from']
 
-    res = data_frame.drop_duplicates({groupby_cols}['key_name'])
+    res = f"""
+    def custom_reducer(file_name):
+        import pandas as pd
+        """
+    if type(from_file) is tuple:
+        parsed_join = parsed_sql['join']
+        l_file_name, r_file_name = from_file
+        res += f"""
+        left_df = pd.read_csv({l_file_name})
+        right_df = pd.read_csv({r_file_name})
+        left_df_col_name = {parsed_join['on'][0].split('.')[1]}
+        right_df_col_name = {parsed_join['on'][1].split('.')[1]}
 
+        data_frame = pd.merge(left=left_df, how={parsed_join['join_type']}, right=right_df, left_on=left_df_col_name,
+                            right_on=right_df_col_name)
+        """
+    else:
+        select_cols = parsed_sql['select']
+        groupby_col = parsed_sql['groupby']
+        if 'groupby' in parsed_sql:
+            res += f"""
+        for i in {select_cols}:
+            if 'aggregate_f_name' in i.keys():
+                if {groupby_col}['key_name']:
+                    data_frame[i['new_name']] = data_frame.groupby({groupby_col}['key_name'])[i['new_name']].transform(
+                        i['aggregate_f_name'])
+                else:
+                    data_frame[i['new_name']] = data_frame.groupby(i['new_name'])[i['new_name']].transform(
+                        i['aggregate_f_name'])
+
+        data_frame = data_frame.drop_duplicates({groupby_col}['key_name'])
+    """
+        elif 'orderby' in parsed_sql:
+            pass
+        else:
+            select_cols = [i['new_name'] for i in parsed_sql['select']]
+            res += f"""
+        data_frame = pd.read_csv(file_name, sep={field_delimiter})
+        data_frame = data_frame[{select_cols}]
+        """
+
+        res += """
+        return data_frame
+        """
     return res
-"""
 
 
 def custom_mapper(file_name, key_column, col_names, field_delimiter):
