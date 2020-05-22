@@ -1,28 +1,40 @@
 import os
 import json
 import threading
+import gui
 
 from parsers import SQLParser, custom_reducer, custom_mapper
 
-path_to_client_file = 'C:\\Users\\gumbe\\workspace\\GitHub\\Diploma\\mr-client\\client.py'
-path_to_client_config_file = 'C:\\Users\\gumbe\\workspace\\GitHub\\Diploma\\mr-client\\config\\json\\client_config.json'
+# windows
+# path_to_client_file = 'C:\\Users\\gumbe\\workspace\\GitHub\\Diploma\\mr-client\\client.py'
+# path_to_client_config_file = 'C:\\Users\\gumbe\\workspace\\GitHub\\Diploma\\mr-client\\config\\json\\client_config.json'
+
+# ubuntu
+path_to_client_file = "/home/mranch/workspace/Diploma/mr-client/client.py"
+path_to_client_config_file = "/home/mranch/workspace/Diploma/mr-client/config/json/client_config.json"
 
 
 def remove_file_from_cluster(file_name):
     # windows
-    os.system(f"python {path_to_client_file} --rem {file_name},1 ")
+    # os.system(f"python {path_to_client_file} --rem {file_name},1 ")
     # ubuntu
-    # os.system(f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --rem '{file_name}',1 ")
+    os.system(f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --rem '{file_name}',1 ")
 
 
 def push_file_on_cluster(file_path, file_name):
     # pushing file on cluster
-    os.system(f"python {path_to_client_file} --pfc '1' --src {file_path} --dest {file_name}")
+    # windows
+    # os.system(f"python {path_to_client_file} --pfc '1' --src {file_path} --dest {file_name}")
+    # ubuntu
+    os.system(f"python3 {path_to_client_file} --pfc '1' --src {file_path} --dest {file_name}")
 
 
 def run_map(mapper_path, file_path, file_name):
     # mapping
-    os.system(f"python {path_to_client_file} --map '1' --mf {mapper_path} --src {file_path} --dest {file_name}")
+    # windows
+    # os.system(f"python {path_to_client_file} --map '1' --mf {mapper_path} --src {file_path} --dest {file_name}")
+    # ubuntu
+    os.system(f"python3 {path_to_client_file} --map '1' --mf {mapper_path} --src {file_path} --dest {file_name}")
 
 
 def get_field_delimiter():
@@ -33,14 +45,25 @@ def get_field_delimiter():
 
 def run_reduce(reducer_path, file_path, file_name):
     if type(file_path) is tuple:
+        # windows
+        # os.system(
+        #     f"python {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path[0]},{file_path[1]} --dest {file_name}")
+        # ubuntu
         os.system(
-            f"python {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path[0]},{file_path[1]} --dest {file_name}")
+            f"python3 {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path[0]},{file_path[1]} --dest {file_name}")
     else:
-        os.system(f"python {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path} --dest {file_name}")
+        # windows
+        # os.system(f"python {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path} --dest {file_name}")
+        # ubuntu
+        os.system(
+            f"python3 {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path} --dest {file_name}")
 
 
 def run_shuffle(file_path, key):
-    os.system(f"python {path_to_client_file} --shuffle '1' --src {file_path} --key {key}")
+    # windows
+    # os.system(f"python {path_to_client_file} --shuffle '1' --src {file_path} --key {key}")
+    # ubuntu
+    os.system(f"python3 {path_to_client_file} --shuffle '1' --src {file_path} --key {key}")
 
 
 def run_tasks(sql):
@@ -127,4 +150,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    gui.run_gui()
