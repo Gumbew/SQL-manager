@@ -10,22 +10,21 @@ def run_gui():
             fn = clear_data_file_name.get()
             if fn:
                 cl_all = clear_all.get()
-                print("CLR DATA!" + fn)
                 main.remove_file_from_cluster(os.path.basename(fn), cl_all)
                 messagebox.showinfo("Done", "Done")
             else:
                 messagebox.showerror("Error", "Please specify file name!")
 
-        clear_data_label = Label(main_frame, text="Clear data")
-        clear_data_label.grid()
+        clear_data_label = Label(main_frame, text="Please enter file name:")
+        clear_data_label.pack(pady=20)
         file_name = StringVar(main_frame, value="A.csv")
         clear_data_file_name = Entry(main_frame, textvariable=file_name)
-        clear_data_file_name.grid()
+        clear_data_file_name.pack(pady=5)
         clear_all = IntVar(main_frame)
         clear_all_checkbutton = Checkbutton(main_frame, text="Clear all?", variable=clear_all)
-        clear_all_checkbutton.grid()
+        clear_all_checkbutton.pack(pady=20)
         submit = Button(main_frame, text="Go", command=clear_data_callback)
-        submit.grid()
+        submit.pack(pady=20)
 
     def init_push_file_on_cluster():
         def pfc_run():
@@ -38,40 +37,54 @@ def run_gui():
             if fn:
                 src_file_name.set(fn.name)
                 src_file_name_label = Label(main_frame, text=src_file_name.get())
-                src_file_name_label.grid()
+                src_file_name_label.pack(pady=20)
                 dest_file_name = StringVar(main_frame, os.path.basename(src_file_name.get()))
                 dest_file_name_label = Label(main_frame, text="Dest file name:")
                 dest_file_name_entry = Entry(main_frame, textvariable=dest_file_name)
-                dest_file_name_label.grid()
-                dest_file_name_entry.grid()
+                dest_file_name_label.pack(pady=5)
+                dest_file_name_entry.pack(pady=5)
                 pfc_btn = Button(main_frame, text="Push file on cluster", command=pfc_run)
-                pfc_btn.grid()
+                pfc_btn.pack(pady=20)
 
         src_file_name = StringVar(main_frame)
         src_file_btn = Button(main_frame, command=choose_src_file_callback, text="Choose source file")
-        src_file_btn.grid()
+        src_file_btn.pack(pady=20)
 
     def init_run_map_reduce():
         def run_map_reduce():
             sql_query = sql_entry.get("1.0", END)
-            if not sql_query:
+            if not sql_query.replace("\n", "").replace(" ", "").replace("\t", ""):
                 messagebox.showerror("Error", "Please set SQL query!")
                 return
-            print(f"sql: {sql_query}")
             main.run_tasks(sql_query)
             messagebox.showinfo("Done", "Done")
 
         mr_label = Label(main_frame, text="Please enter SQL query:")
-        mr_label.grid()
+        mr_label.pack(ipady=10)
         default_sql_command = "SELECT B.Streams, A.Artist as musician, A.URL FROM A.csv INNER JOIN B.csv ON A.URL=B.URL;"
         sql_entry = Text(main_frame)
-        sql_entry.grid()
+        sql_entry.pack(fill=BOTH, expand=1, padx=20, pady=10)
         sql_entry.insert(END, default_sql_command)
         submit_btn = Button(main_frame, text="Run map reduce", command=run_map_reduce)
-        submit_btn.grid()
+        submit_btn.pack(pady=20)
 
     def init_get_file():
-        pass
+        def run_get_file():
+            fn = get_file_name.get()
+            if fn:
+                print("GETTING FILE!")
+                print(fn)
+                messagebox.showinfo("Done", "Done")
+            else:
+                messagebox.showerror("Error", "Please specify file name!")
+
+        get_file_label = Label(main_frame, text="Please specify file name:")
+        get_file_label.pack(pady=20)
+        get_file_name = StringVar(main_frame)
+        get_file_entry = Entry(main_frame, textvariable=get_file_name)
+        get_file_entry.pack(pady=5)
+        get_file_button = Button(main_frame, text="Get file", command=run_get_file)
+        get_file_button.pack(pady=20)
 
     def select_rb():
         choice = rb_var.get()
@@ -87,7 +100,6 @@ def run_gui():
             init_get_file()
 
     root = Tk()
-
     width = 800
     height = 600
     master_name = "Map Reduce"
@@ -98,7 +110,8 @@ def run_gui():
     x_pad = ws // 2 - width // 2
     y_pad = hs // 2 - height // 2
     root.geometry(f"{width}x{height}+{x_pad}+{y_pad}")
-    root.resizable(width=False, height=False)
+    # root.resizable(width=False, height=False)
+    root.minsize(width=width, height=height)
 
     rb_var = StringVar(root, "3")
 
@@ -110,15 +123,15 @@ def run_gui():
     }
     col = 0
     rb_frame = Frame(root)
-    rb_frame.grid()
+    rb_frame.pack(fill=X)
     choose_label = Label(rb_frame, text="Please choose the option:")
-    choose_label.grid(sticky=NSEW, columnspan=4)
+    choose_label.pack(ipady=10)
     for key, value in options.items():
         rb = Radiobutton(rb_frame, text=key, value=value, variable=rb_var, command=select_rb)
-        rb.grid(row=1, column=col, pady=10, padx=40)
+        rb.pack(side=LEFT, fill=X, expand=1)
         col += 1
     main_frame = Frame(root)
-    main_frame.grid()
+    main_frame.pack(fill=BOTH, expand=1)
     select_rb()
 
     root.mainloop()
