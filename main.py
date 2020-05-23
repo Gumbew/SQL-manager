@@ -14,11 +14,11 @@ path_to_client_file = "/home/mranch/workspace/Diploma/mr-client/client.py"
 path_to_client_config_file = "/home/mranch/workspace/Diploma/mr-client/config/json/client_config.json"
 
 
-def remove_file_from_cluster(file_name):
+def remove_file_from_cluster(file_name, clear_all):
     # windows
     # os.system(f"python {path_to_client_file} --rem {file_name},1 ")
     # ubuntu
-    os.system(f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --rem '{file_name}',1 ")
+    os.system(f"python3 /home/mranch/workspace/Diploma/mr-client/client.py --rem '{file_name}',{clear_all} ")
 
 
 def push_file_on_cluster(file_path, file_name):
