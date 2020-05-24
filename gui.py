@@ -102,6 +102,7 @@ def run_gui():
             init_get_file()
 
     root = Tk()
+    root.wm_attributes("-topmost", 1)
     width = 800
     height = 600
     master_name = "Map Reduce"

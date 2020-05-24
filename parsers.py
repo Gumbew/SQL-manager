@@ -130,6 +130,7 @@ class SQLParser:
             res = {}
             oper = list(condition_dict.keys())[0]
             operator = ""
+            print(condition_dict)
             if oper == "eq":
                 operator = "=="
             elif oper == "neq":
@@ -144,7 +145,8 @@ class SQLParser:
                 operator = "<="
             res[oper] = {}
             if operator:
-                left, right = condition_dict[oper]
+                left, right = condition_dict[oper] if type(condition_dict[oper]) is not dict \
+                    else condition_dict[oper]["literal"]
                 res[oper]["operator"] = operator
                 res[oper]["left"] = left
                 res[oper]["right"] = right if type(right) is not dict else right["literal"]
@@ -256,16 +258,17 @@ def custom_reducer(parsed_sql, field_delimiter):
         oper = list(where_dict.keys())[0]
         results = where_dict[oper]
         if oper.endswith("in"):
-            command += f"{results['not_keyword']}data_frame.{results['column']}.isin({results['list_of_literals']})"
+            command += f"{results['not_keyword']}data_frame.{results['column'].title()}.isin(" \
+                       f"{results['list_of_literals']})"
         elif oper.endswith("like"):
-            command += f"{results['not_keyword']}data_frame.{results['column']}.apply(str).str.match" \
+            command += f"{results['not_keyword']}data_frame.{results['column'].title()}.apply(str).str.match" \
                        f"('{results['re_pattern']}')"
         elif oper.endswith("between"):
-            command += f"(data_frame.{results['col']} {results['first_oper']} " \
-                       f"{results['left']}) {results['operator']} (data_frame.{results['col']} " \
+            command += f"(data_frame.{results['col'].title()} {results['first_oper']} " \
+                       f"{results['left']}) {results['operator']} (data_frame.{results['col'].title()} " \
                        f"{results['second_oper']} {results['right']})"
         else:
-            command += f"data_frame.{results['left']} {results['operator']} {results['right']}"
+            command += f"data_frame.{results['left'].title()} {results['operator']} {results['right']}"
         return command
     from_file = parsed_sql["from"]
     res = f"""
