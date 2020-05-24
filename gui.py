@@ -21,6 +21,7 @@ def run_gui():
         clear_data_file_name = Entry(main_frame, textvariable=file_name)
         clear_data_file_name.pack(pady=5)
         clear_all = IntVar(main_frame)
+        clear_all.set(1)
         clear_all_checkbutton = Checkbutton(main_frame, text="Clear all?", variable=clear_all)
         clear_all_checkbutton.pack(pady=20)
         submit = Button(main_frame, text="Go", command=clear_data_callback)
