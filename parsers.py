@@ -126,8 +126,9 @@ class SQLParser:
 
     @staticmethod
     def where_parser(sql_where):
-        res = {}
-        for oper in sql_where:
+        def process_condition_dict(condition_dict):
+            res = {}
+            oper = list(condition_dict.keys())[0]
             operator = ""
             if oper == "eq":
                 operator = "=="
@@ -141,15 +142,14 @@ class SQLParser:
                 operator = ">="
             elif oper == "lte":
                 operator = "<="
+            res[oper] = {}
             if operator:
-                res[oper] = {}
-                left, right = sql_where[oper]
+                left, right = condition_dict[oper]
                 res[oper]["operator"] = operator
                 res[oper]["left"] = left
-                res[oper]["right"] = right
-                # res[oper]["right"] = right if right.isalpha() else eval(right)
+                res[oper]["right"] = right if type(right) is not dict else right["literal"]
             elif oper.endswith("between"):
-                l = sql_where[oper]
+                l = condition_dict[oper]
                 col = l[0]
                 left = l[1]["literal"] if type(l[1]) is dict else l[1]
                 right = l[2]["literal"] if type(l[2]) is dict else l[2]
@@ -168,30 +168,28 @@ class SQLParser:
                 res[oper]["left"] = left
                 res[oper]["second_oper"] = second_oper
                 res[oper]["right"] = right
+                res[oper]["operator"] = "&" if oper == "between" else "|"
             elif oper.endswith("like"):
-                l = sql_where[oper]
+                l = condition_dict[oper]
                 column = l[0]
                 pattern = l[1]["literal"]
-                print(column)
-                print(pattern)
                 escaped_chars = [".", "^", "$", "*", "+", "?", "{", "}", "\\", "[", "]", "|", "(", ")"]
                 escaped_pattern = pattern
                 for esc in escaped_chars:
                     if esc in escaped_pattern:
                         escaped_pattern = escaped_pattern.replace(esc, "\\" + esc)
-                print(escaped_pattern)
                 re_pattern = escaped_pattern.replace("%", ".*").replace("_", ".") + "$"
-                print(re_pattern)
                 not_keyword = "~" if oper == "nlike" else ""
                 res[oper]["not_keyword"] = not_keyword
                 res[oper]["column"] = column
                 res[oper]["re_pattern"] = re_pattern
             elif oper.endswith("in"):
-                l = sql_where[oper]
+                l = condition_dict[oper]
                 column = l[0]
-                list_of_literals = l[1]["literal"]
-                print(column)
-                print(list_of_literals)
+                if type(l[1]) is dict:
+                    list_of_literals = l[1]["literal"]
+                else:
+                    list_of_literals = l[1]
                 not_keyword = "~" if oper == "nin" else ""
                 res[oper]["not_keyword"] = not_keyword
                 res[oper]["column"] = column
@@ -199,6 +197,20 @@ class SQLParser:
                 res[oper]["list_of_literals"] = list_of_literals
             else:
                 print("error!")
+            return res
+        res = {}
+        main_oper = list(sql_where.keys())[0]
+        concat_oper = "none"
+        if main_oper == "or":
+            concat_oper = " | "
+        elif main_oper == "and":
+            concat_oper = " & "
+        if concat_oper == "none":
+            res[concat_oper] = process_condition_dict(sql_where)
+        else:
+            res[concat_oper] = []
+            for d in sql_where[main_oper]:
+                res[concat_oper].append(process_condition_dict(d))
         return res
 
     @staticmethod
@@ -239,6 +251,22 @@ class SQLParser:
 
 
 def custom_reducer(parsed_sql, field_delimiter):
+    def where_dict_to_command(where_dict):
+        command = f""
+        oper = list(where_dict.keys())[0]
+        results = where_dict[oper]
+        if oper.endswith("in"):
+            command += f"{results['not_keyword']}data_frame.{results['column']}.isin({results['list_of_literals']})"
+        elif oper.endswith("like"):
+            command += f"{results['not_keyword']}data_frame.{results['column']}.apply(str).str.match" \
+                       f"('{results['re_pattern']}')"
+        elif oper.endswith("between"):
+            command += f"(data_frame.{results['col']} {results['first_oper']} " \
+                       f"{results['left']}) {results['operator']} (data_frame.{results['col']} " \
+                       f"{results['second_oper']} {results['right']})"
+        else:
+            command += f"data_frame.{results['left']} {results['operator']} {results['right']}"
+        return command
     from_file = parsed_sql["from"]
     res = f"""
 def custom_reducer(file_name, dest):
@@ -263,29 +291,20 @@ def custom_reducer(file_name, dest):
     """
     if "where" in parsed_sql:
         parsed_where = parsed_sql["where"]
-        oper = list(parsed_where.keys())[0]
-        results = parsed_where[oper]
-        if oper.endswith("in"):
-            res += f"""
-    data_frame = data_frame[{results['not_keyword']}data_frame.{results['column']}.isin({results['list_of_literals']})]
-    """
-        elif oper.endswith("like"):
-            res += f"""
-    data_frame = data_frame[{results['not_keyword']}data_frame.{results['column']}.str.match('{results['re_pattern']}')]
-    """
-        elif oper.endswith("between"):
-            res += f"""
-    data_frame[(data_frame.{results['col']} {results['first_oper']} '{results['left']}') &
-    (data_frame.{results['col']} {results['second_oper']} '{results['right']}')]
-    """
+        main_oper = list(parsed_where.keys())[0]
+        if main_oper == "none":
+            dict_for_process = parsed_where[main_oper]
+            command = where_dict_to_command(dict_for_process)
         else:
-            res += f"""
-    data_frame = data_frame[data_frame.{results['left']} {results['operator']} {results['right']}]
+            commands = []
+            for d in parsed_where[main_oper]:
+                commands.append(where_dict_to_command(d))
+            command = main_oper.join([f"({x})" for x in commands])
+        res += f"""
+    data_frame = data_frame[{command}]
     """
+
     select_cols = parsed_sql['select']
-    print("SELECT COLS")
-    print(select_cols)
-    print("SELECT COLS")
     if 'groupby' in parsed_sql:
         groupby_col = parsed_sql['groupby']
         res += f"""

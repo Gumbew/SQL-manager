@@ -69,7 +69,6 @@ def run_shuffle(file_path):
 def run_tasks(sql):
     parsed_sql = SQLParser.sql_parser(sql)
     field_delimiter = get_field_delimiter()
-
     from_file = parsed_sql['from']
     if type(from_file) is tuple:
         reducer = custom_reducer(parsed_sql, field_delimiter)
@@ -92,7 +91,7 @@ def run_tasks(sql):
 
             push_file_on_cluster(file_path, file_name)
             run_map(mapper_path, file_path, file_name)
-            run_shuffle(file_path, key_col)
+            run_shuffle(file_path)
 
         file_name = from_file[0]
 
