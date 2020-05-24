@@ -17,7 +17,7 @@ def run_gui():
 
         clear_data_label = Label(main_frame, text="Please enter file name:")
         clear_data_label.pack(pady=20)
-        file_name = StringVar(main_frame, value="A.csv")
+        file_name = StringVar(main_frame, value="B.csv")
         clear_data_file_name = Entry(main_frame, textvariable=file_name)
         clear_data_file_name.pack(pady=5)
         clear_all = IntVar(main_frame)
@@ -62,6 +62,7 @@ def run_gui():
         mr_label = Label(main_frame, text="Please enter SQL query:")
         mr_label.pack(ipady=10)
         default_sql_command = "SELECT B.Streams, A.Artist as musician, A.URL FROM A.csv INNER JOIN B.csv ON A.URL=B.URL;"
+        default_sql_command = "SELECT * FROM B.csv WHERE Position = 8;"
         sql_entry = Text(main_frame)
         sql_entry.pack(fill=BOTH, expand=1, padx=20, pady=10)
         sql_entry.insert(END, default_sql_command)

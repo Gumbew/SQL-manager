@@ -125,10 +125,89 @@ class SQLParser:
         return res
 
     @staticmethod
+    def where_parser(sql_where):
+        res = {}
+        for oper in sql_where:
+            operator = ""
+            if oper == "eq":
+                operator = "=="
+            elif oper == "neq":
+                operator = "!="
+            elif oper == "gt":
+                operator = ">"
+            elif oper == "lt":
+                operator = "<"
+            elif oper == "gte":
+                operator = ">="
+            elif oper == "lte":
+                operator = "<="
+            if operator:
+                res[oper] = {}
+                left, right = sql_where[oper]
+                res[oper]["operator"] = operator
+                res[oper]["left"] = left
+                res[oper]["right"] = right
+                # res[oper]["right"] = right if right.isalpha() else eval(right)
+            elif oper.endswith("between"):
+                l = sql_where[oper]
+                col = l[0]
+                left = l[1]["literal"] if type(l[1]) is dict else l[1]
+                right = l[2]["literal"] if type(l[2]) is dict else l[2]
+                # if left.isnumeric():
+                #     left = eval(left)
+                # if right.isnumeric():
+                #     right = eval(right)
+                if oper == "not_between":
+                    first_oper = "<"
+                    second_oper = ">"
+                else:
+                    first_oper = ">="
+                    second_oper = "<="
+                res[oper]["col"] = col
+                res[oper]["first_oper"] = first_oper
+                res[oper]["left"] = left
+                res[oper]["second_oper"] = second_oper
+                res[oper]["right"] = right
+            elif oper.endswith("like"):
+                l = sql_where[oper]
+                column = l[0]
+                pattern = l[1]["literal"]
+                print(column)
+                print(pattern)
+                escaped_chars = [".", "^", "$", "*", "+", "?", "{", "}", "\\", "[", "]", "|", "(", ")"]
+                escaped_pattern = pattern
+                for esc in escaped_chars:
+                    if esc in escaped_pattern:
+                        escaped_pattern = escaped_pattern.replace(esc, "\\" + esc)
+                print(escaped_pattern)
+                re_pattern = escaped_pattern.replace("%", ".*").replace("_", ".") + "$"
+                print(re_pattern)
+                not_keyword = "~" if oper == "nlike" else ""
+                res[oper]["not_keyword"] = not_keyword
+                res[oper]["column"] = column
+                res[oper]["re_pattern"] = re_pattern
+            elif oper.endswith("in"):
+                l = sql_where[oper]
+                column = l[0]
+                list_of_literals = l[1]["literal"]
+                print(column)
+                print(list_of_literals)
+                not_keyword = "~" if oper == "nin" else ""
+                res[oper]["not_keyword"] = not_keyword
+                res[oper]["column"] = column
+                # list_of_literals = [eval(x) for x in list_of_literals if x.isnumeric()]
+                res[oper]["list_of_literals"] = list_of_literals
+            else:
+                print("error!")
+        return res
+
+    @staticmethod
     def sql_parser(sql_query):
         parsed_sql = json.dumps(msp.parse(sql_query))
         json_res = json.loads(parsed_sql)
         res = {}
+        if 'where' in json_res:
+            res['where'] = SQLParser.where_parser(json_res['where'])
         if 'select' in json_res:
             res['select'] = SQLParser.select_parser(json_res['select'])
         if 'groupby' in json_res:
@@ -160,32 +239,56 @@ class SQLParser:
 
 
 def custom_reducer(parsed_sql, field_delimiter):
-    from_file = parsed_sql['from']
-
+    from_file = parsed_sql["from"]
     res = f"""
-def custom_reducer(file_name):
+def custom_reducer(file_name, dest):
     import pandas as pd
-    if type(file_name) is tuple:
-        l_file_name, r_file_name = file_name
-        """
+    """
     if type(from_file) is tuple:
-        parsed_join = parsed_sql['join']
+        parsed_join = parsed_sql["join"]
         res += f"""
+    l_file_name, r_file_name = file_name
     left_df = pd.read_csv(l_file_name)
     right_df = pd.read_csv(r_file_name)
     left_df = left_df.drop(columns=['key_column'])
     right_df = right_df.drop(columns=['key_column'])
     left_df_col_name = '{parsed_join['on'][0].split('.')[1]}'
     right_df_col_name = '{parsed_join['on'][1].split('.')[1]}'
-
-    data_frame = pd.merge(left=left_df, how='{parsed_join['join_type']}', right=right_df, left_on=left_df_col_name,
-                        right_on=right_df_col_name)
+    data_frame = pd.merge(left=left_df, how='{parsed_join['join_type']}, right=right_df, left_on=left_df_col_name, 
+                                                                        right_on=right_df_col_name')
     """
     else:
-        select_cols = parsed_sql['select']
-        if 'groupby' in parsed_sql:
-            groupby_col = parsed_sql['groupby']
+        res += f"""
+    data_frame = pd.read_csv(file_name, sep='{field_delimiter}')
+    """
+    if "where" in parsed_sql:
+        parsed_where = parsed_sql["where"]
+        oper = list(parsed_where.keys())[0]
+        results = parsed_where[oper]
+        if oper.endswith("in"):
             res += f"""
+    data_frame = data_frame[{results['not_keyword']}data_frame.{results['column']}.isin({results['list_of_literals']})]
+    """
+        elif oper.endswith("like"):
+            res += f"""
+    data_frame = data_frame[{results['not_keyword']}data_frame.{results['column']}.str.match('{results['re_pattern']}')]
+    """
+        elif oper.endswith("between"):
+            res += f"""
+    data_frame[(data_frame.{results['col']} {results['first_oper']} '{results['left']}') &
+    (data_frame.{results['col']} {results['second_oper']} '{results['right']}')]
+    """
+        else:
+            res += f"""
+    data_frame = data_frame[data_frame.{results['left']} {results['operator']} {results['right']}]
+    """
+    select_cols = parsed_sql['select']
+    print("SELECT COLS")
+    print(select_cols)
+    print("SELECT COLS")
+    if 'groupby' in parsed_sql:
+        groupby_col = parsed_sql['groupby']
+        res += f"""
     for i in {select_cols}:
         if 'aggregate_f_name' in i.keys():
             if {groupby_col}['key_name']:
@@ -194,20 +297,22 @@ def custom_reducer(file_name):
             else:
                 data_frame[i['new_name']] = data_frame.groupby(i['new_name'])[i['new_name']].transform(
                     i['aggregate_f_name'])
-
+    
     data_frame = data_frame.drop_duplicates({groupby_col}['key_name'])
     """
-        elif 'orderby' in parsed_sql:
-            pass
-        else:
-            select_cols = [i['new_name'] for i in parsed_sql['select']]
-            res += f"""
-    data_frame = pd.read_csv(file_name, sep='{field_delimiter}')
+    if "orderby" in parsed_sql:
+        pass
+    select_cols = [i['new_name'] for i in select_cols]
+    if select_cols != ["*"]:
+        res += f"""
     data_frame = data_frame[{select_cols}]
-        """
-
-    res += """
-    return data_frame
+    """
+    else:
+        res += f"""
+    data_frame = data_frame.drop(columns='key_column')
+    """
+    res += f"""
+    data_frame.to_csv(dest, index=False, sep='{field_delimiter}')
     """
     return res
 
@@ -236,7 +341,7 @@ def custom_mapper(file_name):
 
     data_frame = update_col_names()
 
-    data_frame['key_column'] = data_frame['{key_column}']
+    data_frame['key_column'] = data_frame['{key_column}'] if '{key_column}' != '*' else data_frame[data_frame.columns[0]]
 
     return data_frame
 """

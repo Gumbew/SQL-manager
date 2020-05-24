@@ -59,11 +59,11 @@ def run_reduce(reducer_path, file_path, file_name):
             f"python3 {path_to_client_file} --reduce '1' --rf {reducer_path} --src {file_path} --dest {file_name}")
 
 
-def run_shuffle(file_path, key):
+def run_shuffle(file_path):
     # windows
     # os.system(f"python {path_to_client_file} --shuffle '1' --src {file_path} --key {key}")
     # ubuntu
-    os.system(f"python3 {path_to_client_file} --shuffle '1' --src {file_path} --key {key}")
+    os.system(f"python3 {path_to_client_file} --shuffle '1' --src {file_path}")
 
 
 def run_tasks(sql):
@@ -114,7 +114,7 @@ def run_tasks(sql):
 
         push_file_on_cluster(file_path, from_file)
         run_map(mapper_path, file_path, from_file)
-        run_shuffle(file_path, key_col)
+        run_shuffle(file_path)
         run_reduce(reducer_path, file_path, from_file)
 
 
@@ -122,7 +122,6 @@ def main():
     sql = """
         SELECT URL
         FROM B.csv
-        GROUP BY 'URL'
         """
 
     sql2 = """
@@ -139,7 +138,7 @@ def main():
     file_name_A = 'A.csv'
     file_name_B = 'B.csv'
 
-    run_tasks(sql3)
+    # run_tasks(sql3)
     # remove_file_from_cluster(file_name_A)
     # remove_file_from_cluster(file_name_B)
 
