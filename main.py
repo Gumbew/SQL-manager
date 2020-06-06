@@ -71,15 +71,25 @@ def run_tasks(sql):
     # parsed_sql = SQLParser.sql_parser(sql)
     field_delimiter = get_field_delimiter()
     print(parsed_sql)
-    from_file = parsed_sql['from']
+    fn = parsed_sql['from']
+    from_file = fn
+    # if type(fn) is list:
+    #     from_file = fn[0]
+    # else:
+    #     from_file = fn
     if type(from_file) is dict:
         print("SELECT IN SELECT!")
-        while 'value' in from_file:
-            from_file = from_file['value']
-        from_file['select'] = SQLParser.select_parser(from_file['select'])
-        if 'where' in from_file:
-            from_file['where'] = SQLParser.where_parser(from_file['where'])
+        # while 'value' in from_file:
+        #     from_file = from_file['value']
+        # from_file['select'] = SQLParser.select_parser(from_file['select'])
+        # if 'where' in from_file:
+        #     from_file['where'] = SQLParser.where_parser(from_file['where'])
         # return run_tasks(from_file)
+        # fn = run_tasks(from_file)
+        # if type(fn) is tuple:
+        #     from_file = fn[0]
+        # else:
+        #     from_file = fn
         from_file = run_tasks(from_file)
         # from_file = from_file['from']
     if type(from_file) is tuple:
@@ -108,6 +118,8 @@ def run_tasks(sql):
         file_name = from_file[0]
 
         run_reduce(reducer_path, from_file, file_name)
+        return file_name
+
     else:
         key_col = SQLParser.get_key_col(parsed_sql, from_file)
         reducer = custom_reducer(parsed_sql, field_delimiter)
@@ -115,6 +127,8 @@ def run_tasks(sql):
 
         mapper = custom_mapper(from_file, key_col, parsed_sql['select'], field_delimiter)
         mapper_path = os.path.abspath(f"data{os.sep}{from_file}_mapper.py")
+        if type(from_file) is tuple:
+            from_file = from_file[0]
         file_path = os.path.abspath(from_file)
 
         with open(reducer_path, 'w') as r:

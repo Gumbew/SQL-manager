@@ -27,7 +27,7 @@ class SQLParser:
     @staticmethod
     def join_parser(data):
         join_info = data['from'][1]
-        join_type = next(iter(join_info)).split(' ')[0]
+        join_type = " ".join(next(iter(join_info)).split(' ')[:-1]).strip(" ")
 
         on = join_info['on']['eq']
         res = {
@@ -225,8 +225,13 @@ class SQLParser:
 
     @staticmethod
     def sql_parser(sql_query):
-        parsed_sql = json.dumps(msp.parse(sql_query))
-        json_res = json.loads(parsed_sql)
+        if type(sql_query) is dict:
+            while 'value' in sql_query:
+                sql_query = sql_query['value']
+            json_res = sql_query
+        else:
+            parsed_sql = json.dumps(msp.parse(sql_query))
+            json_res = json.loads(parsed_sql)
         res = {}
         if 'where' in json_res:
             res['where'] = SQLParser.where_parser(json_res['where'])
@@ -238,6 +243,8 @@ class SQLParser:
             if type(json_res['from']) is list:
                 res['from'] = SQLParser.from_parser(json_res['from'])
                 res['join'] = SQLParser.join_parser(json_res)
+            elif type(json_res['from']) is dict:
+                res['from'] = SQLParser.sql_parser(json_res['from'])
             else:
                 res['from'] = SQLParser.from_parser(json_res['from'])
         return res
@@ -337,7 +344,7 @@ def custom_reducer(file_name, dest):
     """
     if "orderby" in parsed_sql:
         pass
-    select_cols = [i['new_name'] for i in select_cols]
+    select_cols = [i['new_name'].split(".")[-1] for i in select_cols]
     if select_cols != ["*"]:
         res += f"""
     data_frame = data_frame[{select_cols}]
@@ -346,6 +353,7 @@ def custom_reducer(file_name, dest):
         res += f"""
     data_frame = data_frame.drop(columns='key_column')
     """
+    # select_cols = [i.split(".")[-1] for i in select_cols]
     res += f"""
     data_frame.to_csv(dest, index=False, sep='{field_delimiter}')
     """
