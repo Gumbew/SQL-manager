@@ -17,8 +17,22 @@ class SQLParser:
     @staticmethod
     def from_parser(sql_from):
         if type(sql_from) == list:
+            if 'join' in sql_from[1]:
+                return sql_from[0], sql_from[1]['join']
             if 'inner join' in sql_from[1]:
                 return sql_from[0], sql_from[1]['inner join']
+            if 'right join' in sql_from[1]:
+                return sql_from[0], sql_from[1]['right join']
+            if 'left join' in sql_from[1]:
+                return sql_from[0], sql_from[1]['left join']
+            if 'full join' in sql_from[1]:
+                return sql_from[0], sql_from[1]['outer join']
+            # if 'cross join' in sql_from[1]:
+            #     return sql_from[0], sql_from[1]['cross join']
+            if type(sql_from[0]) is dict:
+                if 'name' in sql_from[0]:
+                    if sql_from[0]['name'] == "OUTER":
+                        return sql_from[0]['value'], sql_from[1]['outer join']
         elif type(sql_from) == dict:
             return sql_from['value']
         else:
@@ -27,7 +41,9 @@ class SQLParser:
     @staticmethod
     def join_parser(data):
         join_info = data['from'][1]
-        join_type = " ".join(next(iter(join_info)).split(' ')[:-1]).strip(" ")
+        join_type = next(iter(join_info)).split(' ')[0]
+        if join_type == "join":
+            join_type = "inner"
 
         on = join_info['on']['eq']
         res = {
