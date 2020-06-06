@@ -19,6 +19,8 @@ class SQLParser:
         if type(sql_from) == list:
             if 'inner join' in sql_from[1]:
                 return sql_from[0], sql_from[1]['inner join']
+        elif type(sql_from) == dict:
+            return sql_from['value']
         else:
             return sql_from
 
@@ -116,10 +118,11 @@ class SQLParser:
                 res.append(item_dict)
         else:
             item_dict = {}
-            if 'literal' in sql_group_by['value'].keys():
-                item_dict['key_name'] = sql_group_by['value']['literal']
+            gb_val = sql_group_by['value']
+            if type(gb_val) is dict:
+                item_dict['key_name'] = gb_val['literal']
             else:
-                item_dict['key_name'] = sql_group_by['value']
+                item_dict['key_name'] = gb_val
 
             res.append(item_dict)
         return res
@@ -130,6 +133,7 @@ class SQLParser:
             res = {}
             oper = list(condition_dict.keys())[0]
             operator = ""
+            print("CONDITION DICT")
             print(condition_dict)
             if oper == "eq":
                 operator = "=="
@@ -202,6 +206,9 @@ class SQLParser:
             return res
         res = {}
         main_oper = list(sql_where.keys())[0]
+        print("MAIN OPER")
+        print(main_oper)
+        print(sql_where[main_oper])
         concat_oper = "none"
         if main_oper == "or":
             concat_oper = " | "
@@ -212,6 +219,7 @@ class SQLParser:
         else:
             res[concat_oper] = []
             for d in sql_where[main_oper]:
+                # res[concat_oper].append(SQLParser.where_parser(d))
                 res[concat_oper].append(process_condition_dict(d))
         return res
 
@@ -249,7 +257,11 @@ class SQLParser:
         if 'groupby' in parsed_sql:
             return parsed_sql['groupby'][0]['key_name']
         if 'select' in parsed_sql:
-            return parsed_sql['select'][0]['new_name']
+            col = parsed_sql['select'][0]
+            if 'new_name' in col:
+                return col['new_name']
+            else:
+                return col['value']
 
 
 def custom_reducer(parsed_sql, field_delimiter):
@@ -257,6 +269,8 @@ def custom_reducer(parsed_sql, field_delimiter):
         command = f""
         oper = list(where_dict.keys())[0]
         results = where_dict[oper]
+        print("RESULTS:")
+        print(results)
         if oper.endswith("in"):
             command += f"{results['not_keyword']}data_frame.{results['column'].title()}.isin(" \
                        f"{results['list_of_literals']})"
@@ -285,8 +299,7 @@ def custom_reducer(file_name, dest):
     right_df = right_df.drop(columns=['key_column'])
     left_df_col_name = '{parsed_join['on'][0].split('.')[1]}'
     right_df_col_name = '{parsed_join['on'][1].split('.')[1]}'
-    data_frame = pd.merge(left=left_df, how='{parsed_join['join_type']}, right=right_df, left_on=left_df_col_name, 
-                                                                        right_on=right_df_col_name')
+    data_frame = pd.merge(left=left_df, how='{parsed_join['join_type']}', right=right_df, left_on=left_df_col_name, right_on=right_df_col_name)
     """
     else:
         res += f"""
@@ -309,7 +322,7 @@ def custom_reducer(file_name, dest):
 
     select_cols = parsed_sql['select']
     if 'groupby' in parsed_sql:
-        groupby_col = parsed_sql['groupby']
+        groupby_col = parsed_sql['groupby'][0]
         res += f"""
     for i in {select_cols}:
         if 'aggregate_f_name' in i.keys():

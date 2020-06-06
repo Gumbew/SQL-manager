@@ -67,9 +67,21 @@ def run_shuffle(file_path):
 
 
 def run_tasks(sql):
-    parsed_sql = SQLParser.sql_parser(sql)
+    parsed_sql = sql if type(sql) is dict else SQLParser.sql_parser(sql)
+    # parsed_sql = SQLParser.sql_parser(sql)
     field_delimiter = get_field_delimiter()
+    print(parsed_sql)
     from_file = parsed_sql['from']
+    if type(from_file) is dict:
+        print("SELECT IN SELECT!")
+        while 'value' in from_file:
+            from_file = from_file['value']
+        from_file['select'] = SQLParser.select_parser(from_file['select'])
+        if 'where' in from_file:
+            from_file['where'] = SQLParser.where_parser(from_file['where'])
+        # return run_tasks(from_file)
+        from_file = run_tasks(from_file)
+        # from_file = from_file['from']
     if type(from_file) is tuple:
         reducer = custom_reducer(parsed_sql, field_delimiter)
         merged_file_names = f"{os.path.splitext(from_file[0])[0]}_{os.path.splitext(from_file[1])[0]}"
@@ -115,6 +127,7 @@ def run_tasks(sql):
         run_map(mapper_path, file_path, from_file)
         run_shuffle(file_path)
         run_reduce(reducer_path, file_path, from_file)
+        return from_file
 
 
 def main():
