@@ -63,7 +63,7 @@ def run_gui():
         mr_label = Label(main_frame, text="Please enter SQL query:")
         mr_label.pack(ipady=10)
         default_sql_command = "SELECT B.Streams, A.Artist as musician, A.URL FROM A.csv INNER JOIN B.csv ON A.URL=B.URL;"
-        # default_sql_command = "SELECT Artist, SUM(Streams) FROM spotify_data.csv WHERE Streams > 10000 AND Region NOT IN ('ua, us') OR Position BETWEEN 20 AND 100 GROUP BY 'Artist';"
+        default_sql_command = "SELECT Artist, SUM(Streams) FROM spotify_data.csv WHERE Streams > 10000 OR Position BETWEEN 20 AND 100 GROUP BY 'Artist';"
         # default_sql_command = "SELECT A.URL, A.Position FROM A.csv JOIN B.csv ON A.URL = B.URL;"
         # default_sql_command = "SELECT * FROM spotify_data.csv WHERE Artist LIKE 'C%';"
 
@@ -80,7 +80,8 @@ def run_gui():
         #                       "WHERE Position IN (1, 2, 3) OR Streams BETWEEN 1000 AND 5000) " \
         #                       "WHERE Artist LIKE '% % %';"
         # default_sql_command = "SELECT Artist, Position FROM spotify_data.csv WHERE Region IN ('ua', 'us') OR Position NOT LIKE '___';"
-        default_sql_command = "SELECT * FROM (SELECT B.Streams, A.Artist as Musician, A.URL FROM A.csv INNER JOIN B.csv ON A.URL=B.URL) WHERE Musician LIKE '% %';"
+        # default_sql_command = "SELECT * FROM (SELECT B.Streams, A.Artist as Musician, A.URL FROM A.csv INNER JOIN B.csv ON A.URL=B.URL) WHERE Musician LIKE '% %';"
+        # default_sql_command = "SELECT * FROM spotify_data.csv ORDER BY Position;"
         sql_entry = Text(main_frame)
         sql_entry.pack(fill=BOTH, expand=1, padx=20, pady=10)
         sql_entry.insert(END, default_sql_command)

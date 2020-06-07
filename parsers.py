@@ -125,11 +125,13 @@ class SQLParser:
         if type(sql_group_by) is list:
             for item in sql_group_by:
                 item_dict = {}
-
-                if 'literal' in item['value'].keys():
-                    item_dict['key_name'] = item['value']['literal']
-                else:
-                    item_dict['key_name'] = item['value']
+                item_dict['key_name'] = item['value']
+                if type(item_dict['key_name']) is dict:
+                    item_dict['key_name'] = item_dict['key_name']['literal']
+                # if 'literal' in item['value'].keys():
+                #     item_dict['key_name'] = item['value']['literal']
+                # else:
+                #     item_dict['key_name'] = item['value']
 
                 res.append(item_dict)
         else:
@@ -165,16 +167,16 @@ class SQLParser:
                 operator = "<="
             res[oper] = {}
             if operator:
-                left, right = condition_dict[oper] if type(condition_dict[oper]) is not dict \
+                left, right = condition_dict[oper] if not type(condition_dict[oper]) is dict \
                     else condition_dict[oper]["literal"]
                 res[oper]["operator"] = operator
                 res[oper]["left"] = left
-                res[oper]["right"] = right if type(right) is not dict else right["literal"]
+                res[oper]["right"] = right if not type(right) is dict else right["literal"]
             elif oper.endswith("between"):
                 l = condition_dict[oper]
                 col = l[0]
-                left = l[1]["literal"] if type(l[1]) is dict else l[1]
-                right = l[2]["literal"] if type(l[2]) is dict else l[2]
+                left = l[1] if not type(l[1]) is dict else l[1]["literal"]
+                right = l[2] if not type(l[2]) is dict else l[2]["literal"]
                 # if left.isnumeric():
                 #     left = eval(left)
                 # if right.isnumeric():
@@ -208,10 +210,11 @@ class SQLParser:
             elif oper.endswith("in"):
                 l = condition_dict[oper]
                 column = l[0]
-                if type(l[1]) is dict:
-                    list_of_literals = l[1]["literal"]
-                else:
-                    list_of_literals = l[1]
+                list_of_literals = l[1] if not type(l[1]) is dict else l[1]['literal']
+                # if type(l[1]) is dict:
+                #     list_of_literals = l[1]["literal"]
+                # else:
+                #     list_of_literals = l[1]
                 not_keyword = "~" if oper == "nin" else ""
                 res[oper]["not_keyword"] = not_keyword
                 res[oper]["column"] = column
@@ -220,6 +223,7 @@ class SQLParser:
             else:
                 print("error!")
             return res
+
         res = {}
         main_oper = list(sql_where.keys())[0]
         print("MAIN OPER")
@@ -240,6 +244,16 @@ class SQLParser:
         return res
 
     @staticmethod
+    def orderby_parser(sql_orderby):
+        val = sql_orderby['value']
+        sort_asc = True
+        col = val if not type(val) is dict else val['literal']
+        if 'sort' in sql_orderby:
+            if sql_orderby['sort'] == 'desc':
+                sort_asc = False
+        return col, sort_asc
+
+    @staticmethod
     def sql_parser(sql_query):
         if type(sql_query) is dict:
             while 'value' in sql_query:
@@ -255,6 +269,8 @@ class SQLParser:
             res['select'] = SQLParser.select_parser(json_res['select'])
         if 'groupby' in json_res:
             res['groupby'] = SQLParser.group_by_parser(json_res['groupby'])
+        if 'orderby' in json_res:
+            res['orderby'] = SQLParser.orderby_parser(json_res['orderby'])
         if 'from' in json_res:
             if type(json_res['from']) is list:
                 res['from'] = SQLParser.from_parser(json_res['from'])
@@ -307,6 +323,7 @@ def custom_reducer(parsed_sql, field_delimiter):
         else:
             command += f"data_frame.{results['left'].title()} {results['operator']} {results['right']}"
         return command
+
     from_file = parsed_sql["from"]
     res = f"""
 def custom_reducer(file_name, dest):
@@ -358,8 +375,6 @@ def custom_reducer(file_name, dest):
     
     data_frame = data_frame.drop_duplicates({groupby_col}['key_name'])
     """
-    if "orderby" in parsed_sql:
-        pass
     select_cols = [i['new_name'].split(".")[-1] for i in select_cols]
     if select_cols != ["*"]:
         res += f"""
@@ -368,6 +383,11 @@ def custom_reducer(file_name, dest):
     else:
         res += f"""
     data_frame = data_frame.drop(columns='key_column')
+    """
+    if "orderby" in parsed_sql:
+        col, asc = parsed_sql['orderby']
+        res += f"""
+    data_frame = data_frame.sort_values(by='{col}', ascending={asc})
     """
     # select_cols = [i.split(".")[-1] for i in select_cols]
     res += f"""
