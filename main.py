@@ -1,6 +1,5 @@
 import os
 import json
-import threading
 import gui
 
 from parsers import SQLParser, custom_reducer, custom_mapper
@@ -72,30 +71,11 @@ def get_file_from_cluster(file_name, dest_file_name):
 
 def run_tasks(sql):
     parsed_sql = sql if type(sql) is dict else SQLParser.sql_parser(sql)
-    # parsed_sql = SQLParser.sql_parser(sql)
     field_delimiter = get_field_delimiter()
-    print(parsed_sql)
     fn = parsed_sql['from']
     from_file = fn
-    # if type(fn) is list:
-    #     from_file = fn[0]
-    # else:
-    #     from_file = fn
     if type(from_file) is dict:
-        print("SELECT IN SELECT!")
-        # while 'value' in from_file:
-        #     from_file = from_file['value']
-        # from_file['select'] = SQLParser.select_parser(from_file['select'])
-        # if 'where' in from_file:
-        #     from_file['where'] = SQLParser.where_parser(from_file['where'])
-        # return run_tasks(from_file)
-        # fn = run_tasks(from_file)
-        # if type(fn) is tuple:
-        #     from_file = fn[0]
-        # else:
-        #     from_file = fn
         from_file = run_tasks(from_file)
-        # from_file = from_file['from']
     if type(from_file) is tuple:
         reducer = custom_reducer(parsed_sql, field_delimiter)
         merged_file_names = f"{os.path.splitext(from_file[0])[0]}_{os.path.splitext(from_file[1])[0]}"
@@ -148,36 +128,5 @@ def run_tasks(sql):
         return from_file
 
 
-def main():
-    sql = """
-        SELECT URL
-        FROM B.csv
-        """
-
-    sql2 = """
-            SELECT Artist
-            FROM A.csv
-            """
-
-    sql3 = """
-        SELECT B.Streams, A.Artist as musician, A.URL
-        FROM A.csv
-        INNER JOIN B.csv ON A.URL=B.URL;
-        """
-
-    file_name_A = 'A.csv'
-    file_name_B = 'B.csv'
-
-    # run_tasks(sql3)
-    # remove_file_from_cluster(file_name_A)
-    # remove_file_from_cluster(file_name_B)
-
-    # t1 = threading.Thread(target=run_tasks, args=(sql,))
-    # t2 = threading.Thread(target=run_tasks, args=(sql2,))
-    # t1.start()
-    # t2.start()
-
-
 if __name__ == "__main__":
-    # main()
     gui.run_gui()

@@ -27,8 +27,6 @@ class SQLParser:
                 return sql_from[0], sql_from[1]['left join']
             if 'full join' in sql_from[1]:
                 return sql_from[0], sql_from[1]['outer join']
-            # if 'cross join' in sql_from[1]:
-            #     return sql_from[0], sql_from[1]['cross join']
             if type(sql_from[0]) is dict:
                 if 'name' in sql_from[0]:
                     if sql_from[0]['name'] == "OUTER":
@@ -128,11 +126,6 @@ class SQLParser:
                 item_dict['key_name'] = item['value']
                 if type(item_dict['key_name']) is dict:
                     item_dict['key_name'] = item_dict['key_name']['literal']
-                # if 'literal' in item['value'].keys():
-                #     item_dict['key_name'] = item['value']['literal']
-                # else:
-                #     item_dict['key_name'] = item['value']
-
                 res.append(item_dict)
         else:
             item_dict = {}
@@ -151,8 +144,7 @@ class SQLParser:
             res = {}
             oper = list(condition_dict.keys())[0]
             operator = ""
-            print("CONDITION DICT")
-            print(condition_dict)
+
             if oper == "eq":
                 operator = "=="
             elif oper == "neq":
@@ -177,10 +169,7 @@ class SQLParser:
                 col = l[0]
                 left = l[1] if not type(l[1]) is dict else l[1]["literal"]
                 right = l[2] if not type(l[2]) is dict else l[2]["literal"]
-                # if left.isnumeric():
-                #     left = eval(left)
-                # if right.isnumeric():
-                #     right = eval(right)
+
                 if oper == "not_between":
                     first_oper = "<"
                     second_oper = ">"
@@ -211,14 +200,9 @@ class SQLParser:
                 l = condition_dict[oper]
                 column = l[0]
                 list_of_literals = l[1] if not type(l[1]) is dict else l[1]['literal']
-                # if type(l[1]) is dict:
-                #     list_of_literals = l[1]["literal"]
-                # else:
-                #     list_of_literals = l[1]
                 not_keyword = "~" if oper == "nin" else ""
                 res[oper]["not_keyword"] = not_keyword
                 res[oper]["column"] = column
-                # list_of_literals = [eval(x) for x in list_of_literals if x.isnumeric()]
                 res[oper]["list_of_literals"] = list_of_literals
             else:
                 print("error!")
@@ -226,9 +210,6 @@ class SQLParser:
 
         res = {}
         main_oper = list(sql_where.keys())[0]
-        print("MAIN OPER")
-        print(main_oper)
-        print(sql_where[main_oper])
         concat_oper = "none"
         if main_oper == "or":
             concat_oper = " | "
@@ -239,7 +220,6 @@ class SQLParser:
         else:
             res[concat_oper] = []
             for d in sql_where[main_oper]:
-                # res[concat_oper].append(SQLParser.where_parser(d))
                 res[concat_oper].append(process_condition_dict(d))
         return res
 
@@ -308,8 +288,6 @@ def custom_reducer(parsed_sql, field_delimiter):
         command = f""
         oper = list(where_dict.keys())[0]
         results = where_dict[oper]
-        print("RESULTS:")
-        print(results)
         if oper.endswith("in"):
             command += f"{results['not_keyword']}data_frame.{results['column'].title()}.isin(" \
                        f"{results['list_of_literals']})"
@@ -389,7 +367,6 @@ def custom_reducer(file_name, dest):
         res += f"""
     data_frame = data_frame.sort_values(by='{col}', ascending={asc})
     """
-    # select_cols = [i.split(".")[-1] for i in select_cols]
     res += f"""
     data_frame.to_csv(dest, index=False, sep='{field_delimiter}')
     """
