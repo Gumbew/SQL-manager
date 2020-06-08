@@ -66,6 +66,10 @@ def run_shuffle(file_path):
     os.system(f"python3 {path_to_client_file} --shuffle '1' --src {file_path}")
 
 
+def get_file_from_cluster(file_name, dest_file_name):
+    os.system(f"python3 {path_to_client_file} --gffc '1' --src {file_name} --dest {dest_file_name}")
+
+
 def run_tasks(sql):
     parsed_sql = sql if type(sql) is dict else SQLParser.sql_parser(sql)
     # parsed_sql = SQLParser.sql_parser(sql)
